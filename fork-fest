@@ -2,9 +2,10 @@
 # fork-fest
 # A GitHub script to update all of your forks for you!
 # Unlicense License
-# Requires package(s) `gh`, `curl`, & `jq`
+# Requires package(s) `gh`, `git`, `curl`, & `jq`
 
 [ -z $1 ] && echo 'No argument(s) supplied.' && exit
+
 gh auth login
 gh config set prompt disabled
 echo
@@ -17,15 +18,17 @@ function update() {
 	echo "Getting update information..."
 	echo
 	URL=$(curl -s "https://api.github.com/repos/${USER#*: }/$1" > $1)
-	SOURCE="$(cat explore | jq -r '. | .parent.owner.login')"
-	DEFAULT="$(cat explore | jq -r '. | .parent.default_branch')"
-	BRANCH="$(cat explore | jq -r '. | .default_branch')"
+	SOURCE="$(cat $1 | jq -r '. | .parent.owner.login')"
+	DEFAULT="$(cat $1 | jq -r '. | .parent.default_branch')"
+	BRANCH="$(cat $1 | jq -r '. | .default_branch')"
 	rm $1
 	gh repo clone $1
 	echo
 	cd $1
-	echo "Merging $SOURCE:$DEFAULT into $1:$BRANCH..."
-	gh pr create --fill --head "$SOURCE:$DEFAULT"
+	echo "Merging $SOURCE/$DEFAULT into $1/$BRANCH..."
+	echo "https://github.com/${USER#*: }/$1.git"
+	git remote add origin "https://github.com/${USER#*: }/$1.git"
+	git pull upstream $BRANCH && git push -u origin $DEFAULT
 	echo
 	cd ..
 	sudo rm -r $1
