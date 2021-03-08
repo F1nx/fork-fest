@@ -1,0 +1,27 @@
+#!/bin/bash
+# fork-fest
+# A GitHub script to update all of your forks for you!
+# GPLv3
+# Requires package(s) `gh`
+
+[ -z $1 ] && echo 'No argument(s) supplied.' && exit
+gh auth login
+
+function update() {
+	echo "Updating $1..."
+}
+
+if [[ $1 == '-a' || '--all' || 'all' ]]; then
+	FORKS="$(gh repo list --fork --limit 1000 --no-archived)"
+	IFS=$'\n' read -d "" -ra forks <<< "${FORKS//[[:blank:]]/$'\n'}"
+	#printf '%s\n' "${forks[@]}" #DEV
+	for string in "${forks[@]}"; do
+		[[ $string == *"/"* ]] && update $string
+	done
+	exit
+fi
+
+update $1
+
+gh auth logout
+exit
