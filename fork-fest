@@ -1,27 +1,52 @@
 #!/bin/bash
 # fork-fest
 # A GitHub script to update all of your forks for you!
-# GPLv3
-# Requires package(s) `gh`
+# Unlicense License
+# Requires package(s) `gh`, `curl`, & `jq`
 
 [ -z $1 ] && echo 'No argument(s) supplied.' && exit
 gh auth login
+gh config set prompt disabled
+echo
+cd ~/.config/gh
 
 function update() {
 	echo "Updating $1..."
+	echo
+	USER="$(head -2 hosts.yml | tail +2)"
+	echo "Getting update information..."
+	echo
+	URL=$(curl -s "https://api.github.com/repos/${USER#*: }/$1" > $1)
+	SOURCE="$(cat explore | jq -r '. | .parent.owner.login')"
+	DEFAULT="$(cat explore | jq -r '. | .parent.default_branch')"
+	BRANCH="$(cat explore | jq -r '. | .default_branch')"
+	rm $1
+	gh repo clone $1
+	echo
+	cd $1
+	echo "Merging $SOURCE:$DEFAULT into $1:$BRANCH..."
+	gh pr create --fill --head "$SOURCE:$DEFAULT"
+	echo
+	cd ..
+	sudo rm -r $1
 }
 
-if [[ $1 == '-a' || '--all' || 'all' ]]; then
+if [[ $1 == *"all"* ]]; then
 	FORKS="$(gh repo list --fork --limit 1000 --no-archived)"
 	IFS=$'\n' read -d "" -ra forks <<< "${FORKS//[[:blank:]]/$'\n'}"
-	#printf '%s\n' "${forks[@]}" #DEV
+	FORKS="$(curl -s)"
 	for string in "${forks[@]}"; do
-		[[ $string == *"/"* ]] && update $string
+		[[ $string == *"/"* ]] && update "${string#*/}"
 	done
-	exit
+else
+	for fork in $@; do
+		update $fork
+	done
 fi
 
-update $1
-
+gh config set prompt enabled
 gh auth logout
+echo
+echo "Finished."
+echo
 exit
